@@ -3,7 +3,7 @@
 #DATA PREPARATION
 #TODO: configure this Rscript to accept filename parameters and return an RDATA file.
 
-# raw data import
+# raw data import, data management and gesospatial libraries.
 library(readxl)
 library(dplyr)
 library(sf)
@@ -25,7 +25,6 @@ read_excel_allsheets <- function(filename, tibble = FALSE) {
 source_data <- read_excel_allsheets(filename = "data/20190709_matrices_OD_Tarragona - municipios.xlsx")
 
 # get dates from sheet names
-
 od_matrices <- source_data[grep("MAT", names(source_data))]
 od_matrices<-
   lapply(od_matrices, 
@@ -84,13 +83,11 @@ nodes <- st_read(dsn = "data/gis-data.gpkg", layer = 'nodes', stringsAsFactors =
 st_geometry(nodes) <- NULL
 
 
-
-# diff: asked by reviewer 3
-# We add a single trip wen no trips where recorded, so we can calculate the percentage.
+# diff: For the plot requested by reviewer 3
 library(tidyr)
 edges <-
   edges %>%
-  spread(date, trips, fill = 1, convert = FALSE) %>% 
+  spread(date, trips, fill = 0, convert = FALSE) %>% 
   mutate(Wednesday=((`2018-08-08`-`2019-01-23`))) %>% 
   mutate(Saturday=((`2018-08-11`-`2019-01-26`))) %>% 
   select(from, to,time_range, residence, Wednesday, Saturday) %>% 
@@ -99,9 +96,7 @@ edges <-
 
 
 
-
-
-# Context
+# Geographical context
 background <- st_read(dsn = "data/gis-data.gpkg", layer = 'municipalities', stringsAsFactors = F) %>% 
   st_transform(4326)
 
@@ -118,13 +113,14 @@ urban <- st_read(dsn = "data/gis-data.gpkg", layer = 'urban', stringsAsFactors =
   st_transform(4326) %>% 
   filter(habitantes>100)
 
-# GROUPINGS
+# Goupings
 edges.salou_by_date <- edges %>%
   group_by(from,to,residence,date) %>%
   summarize(trips = sum(trips)) %>% 
   filter(from==3|from==4|from==5|to==3|to==4|to==5)
 
 # Edges and nodes must be defined first
+# This function allows us to create several combinations of plots.
 build_ggraph<-
   function(edges,nodes,selfloops=FALSE){
     
@@ -176,7 +172,7 @@ build_ggraph<-
                             directed = TRUE,
                             vertices = nodes[,c(1,2,3)])
     
-    #????
+    #Geographical layout
     lo<-as.matrix(nodes[,c(4,5)])
 
     g <- ggraph(graph, layout=lo) +
@@ -217,15 +213,9 @@ build_ggraph<-
         end_cap = circle(3, 'mm'),
         arrow = arrow(length = unit(1, 'mm')),
         aes(filter=curved==FALSE,
-            width = trips, colour = origin#, 
-            # label=format(as.numeric(trips), big.mark=",")
+            width = trips, colour = origin, 
+            label=format(as.numeric(trips), big.mark=",")
         )) +
-      # scale_colour_manual(values = c("steelblue","dodgerblue","firebrick","gold3","tomato","deepskyblue","mediumslateblue")) +
-      # scale_edge_color_manual(values = c("steelblue","dodgerblue","firebrick","gold3","tomato","deepskyblue","mediumslateblue")) +
-      # scale_colour_manual(values = c("steelblue","dodgerblue","tomato","tomato","tomato","deepskyblue","mediumslateblue")) +
-      # scale_edge_color_manual(values = c("steelblue","dodgerblue","tomato","tomato","tomato","deepskyblue","mediumslateblue")) +
-      # scale_colour_manual(values = c("steelblue","steelblue","tomato","tomato","tomato","steelblue","steelblue")) +
-      # scale_edge_color_manual(values = c("steelblue","steelblue","tomato","tomato","tomato","steelblue","steelblue")) +
       geom_edge_arc(alpha = .4,
                     strength = filter(edges.filtered,curved==TRUE)$strength,
                     angle_calc = 'along',
@@ -237,8 +227,8 @@ build_ggraph<-
                     arrow = arrow(length = unit(1, 'mm')),
                     aes(filter=curved==TRUE,
                         width = trips, 
-                        colour = origin#,
-                        # label=format(as.numeric(trips), big.mark=",")
+                        colour = origin,
+                        label=format(as.numeric(trips), big.mark=",")
                     )) +
       geom_node_point(aes(colour = label, size=size))+
       #geom_node_text(aes(label=label, size=size))+
@@ -264,7 +254,7 @@ build_ggraph<-
     
     g<-
       g + theme_graph(base_family = 'Helvetica') +
-      # ggtitle(paste0(filter,' mobility patterns (differences summer-winter)')) +
+      ggtitle(paste0(filter,' mobility patterns (differences summer-winter)')) +
       labs(colour= "Trips from", edge_colour  = "Trips from", edge_width = "Increment of trips (summer - winter)", size="Population")+
       theme(legend.position="bottom",
             panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.5), panel.background = element_rect(fill = "aliceblue"))+guides(edge_colour=guide_legend(ncol=4,byrow=FALSE,title.position="top"),
@@ -276,14 +266,14 @@ build_ggraph<-
     return(g)
   }
 
-
+#Build the flow map and save it to a device
 build_ggraph(edges.salou_by_date, nodes, selfloops = TRUE)
 
-ggsave(filename = "dist/img/jpg/full-relative-faceted-graph-with-self-loops.jpg",
+ggsave(filename = "img/jpg/full-relative-faceted-graph-with-self-loops.jpg",
        height=210, width=297, units='mm',
        dpi = 300)
 
-ggsave(filename = "dist/img/pdf/full-relative-faceted-graph-with-self-loops.pdf",
-       height=160, width=250, units='mm',
+ggsave(filename = "img/pdf/full-relative-faceted-graph-with-self-loops.pdf",
+       height=210, width=297, units='mm',
        dpi = 300)
 
