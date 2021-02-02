@@ -25,7 +25,6 @@ read_excel_allsheets <- function(filename, tibble = FALSE) {
 source_data <- read_excel_allsheets(filename = "data/20190709_matrices_OD_Tarragona - municipios.xlsx")
 
 # get dates from sheet names
-
 od_matrices <- source_data[grep("MAT", names(source_data))]
 od_matrices<-
   lapply(od_matrices, 
@@ -83,7 +82,7 @@ nodes <- st_read(dsn = "data/gis-data.gpkg", layer = 'nodes', stringsAsFactors =
 
 st_geometry(nodes) <- NULL
 
-# Context
+# Geographical context
 background <- st_read(dsn = "data/gis-data.gpkg", layer = 'municipalities', stringsAsFactors = F) %>% 
   st_transform(4326)
 
@@ -100,12 +99,13 @@ urban <- st_read(dsn = "data/gis-data.gpkg", layer = 'urban', stringsAsFactors =
   st_transform(4326) %>% 
   filter(habitantes>100)
 
-# GROUPINGS
+# Groupings
 edges.salou_by_date <- edges %>%
   group_by(from,to,residence,date) %>%
   summarize(trips = sum(trips)) %>% 
   filter(from==3|from==4|from==5|to==3|to==4|to==5)
 
+#DATA VISUALISATION            
 # Edges and nodes must be defined first
 build_ggraph<-
   function(edges,nodes, filter="Foreigners", selfloops=FALSE){
@@ -121,8 +121,6 @@ build_ggraph<-
       mutate(destination=label) %>% 
       select(-c(label,x,y,starts_with('size'))) %>%
       filter(residence==filter) %>% 
-      # filter(time_range=="11:00 - 14:00") %>% 
-      # filter(date=="2018-08-08") %>% 
       mutate(curved=
                case_when(
                  from==1&&to==3 ~ TRUE,#tarragona-saloutur
@@ -161,7 +159,7 @@ build_ggraph<-
                             directed = TRUE,
                             vertices = nodes[,c(1,2,3)])
     
-    #????
+    #Geographical layout
     lo<-as.matrix(nodes[,c(4,5)])
 
     g <- ggraph(graph, layout=lo) +
@@ -205,12 +203,6 @@ build_ggraph<-
             width = trips, colour = origin, 
             label=format(as.numeric(trips), big.mark=",")
         )) +
-      # scale_colour_manual(values = c("steelblue","dodgerblue","firebrick","gold3","tomato","deepskyblue","mediumslateblue")) +
-      # scale_edge_color_manual(values = c("steelblue","dodgerblue","firebrick","gold3","tomato","deepskyblue","mediumslateblue")) +
-      # scale_colour_manual(values = c("steelblue","dodgerblue","tomato","tomato","tomato","deepskyblue","mediumslateblue")) +
-      # scale_edge_color_manual(values = c("steelblue","dodgerblue","tomato","tomato","tomato","deepskyblue","mediumslateblue")) +
-      # scale_colour_manual(values = c("steelblue","steelblue","tomato","tomato","tomato","steelblue","steelblue")) +
-      # scale_edge_color_manual(values = c("steelblue","steelblue","tomato","tomato","tomato","steelblue","steelblue")) +
       geom_edge_arc(alpha = .4,
                     strength = filter(edges.filtered,curved==TRUE)$strength,
                     angle_calc = 'along',
@@ -249,8 +241,7 @@ build_ggraph<-
     
     g<-
       g + theme_graph(base_family = 'Helvetica') +
-      #ggtitle(filter)+
-      # ggtitle(paste0(filter,' mobility patterns')) +
+      ggtitle(paste0(filter,' mobility patterns')) +
       labs(colour= "Trips from", edge_colour  = "Trips from", edge_width = "Number of trips", size="Population")+
       theme(legend.position="right",
             panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.5), panel.background = element_rect(fill = "aliceblue"))+guides(edge_colour=guide_legend(ncol=1,byrow=FALSE,title.position="top"),
@@ -262,20 +253,7 @@ build_ggraph<-
     return(g)
   }
 
-
-# build_ggraph(edges.salou_by_date, nodes, filter = "Locals", selfloops = TRUE)
-
-# build_ggraph(edges.salou_by_date, nodes, filter = "Tourists - Spaniards", selfloops = TRUE)
-
-# build_ggraph(edges.salou_by_date, nodes, filter = "Tourists - Internationals", selfloops = TRUE)
-
-
-
-# ggsave(filename = "dist/img/jpg/resta-espanya-faceted-graph-with-self-loops.jpg",
-#        height=160, width=200, units='mm',
-#        dpi = 300)
-
-
+#Build plots for each resicence and save to a device. Try with and without self-loops.
 lapply(unique(edges$residence),
        function(x) {
          fn<-gsub(x = tolower(x),pattern = " ",replacement = "")
