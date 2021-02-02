@@ -1,8 +1,8 @@
-# install.packages("ggalluvial")
 library(ggalluvial)
 library(stringr)
 library(scales)
 
+# edges dataframe must be available from the data preprocessing step
 edges.by_type<-
   edges %>% 
   left_join(nodes,by=c("from"="id")) %>% 
@@ -34,31 +34,9 @@ edges.by_type<-
     destination=="Vila seca" ~ "VS"
   ))
 
-lapply(unique(edges.by_type$date),
-       function(x) {
-         fn<-gsub(x = tolower(x),pattern = " ",replacement = "")
-         
-         ggplot(filter(edges.by_type,date==fn),
-                aes(y = trips, axis1 = origin, axis2=destination)) +
-           facet_grid(type~time_range)+
-           geom_alluvium(aes(fill = residence), width = 2/12, na.rm = TRUE) +
-           geom_stratum(width = 2/12, alpha = 1.0,fill = "black", color = "grey", na.rm = TRUE) +
-           geom_text(stat = "stratum", size=3, color="white", aes(label = after_stat(stratum))) +
-           scale_x_discrete(limits = c("From", "To"), expand = c(.05, .05)) +
-           scale_fill_brewer(name="Residence",type = "qual", palette = "Set1") +
-           ylab("Trips") + theme(plot.title = element_text(hjust = 0.5)) +
-           theme(legend.position = "top")
-         
-         # ggsave(filename = paste0("dist/img/tiff/",fn,"-faceted-alluvials.tiff"),
-         #        height=170, width=247, units='mm',
-         #        dpi = 300)
-         ggsave(filename = paste0("dist/img/png/",fn,"-faceted-alluvials.png"),
-                height=210, width=297, units='mm',
-                dpi = 300)
-       })
 
-
-##BY HAND
+####################
+# Summer mosaic
 
 week_summer <- 
   ggplot(filter(edges.by_type,date=="2018-08-08"),
@@ -74,8 +52,6 @@ week_summer <-
   scale_y_continuous(label=comma) +
   ggtitle(as.character(format(as.Date("2018-08-08"),'%A, %B %d, %Y')))+
   theme(legend.position = "bottom")
-
-
 
 weekend_summer<-
   ggplot(filter(edges.by_type,date=="2018-08-11"),
@@ -111,11 +87,11 @@ plot <-
   plot_grid(plegend, prow, 
             ncol = 1, rel_heights = c(.05, 1))
 
-ggsave(plot,filename = paste0("dist/img/png/summer-faceted-alluvials.png"),
+ggsave(plot,filename = paste0("img/png/summer-faceted-alluvials.png"),
        height=210, width=297, units='mm',
        dpi = 300)
 
-
+####################
 # Winter mosaic
 week_winter <- 
   ggplot(filter(edges.by_type,date=="2019-01-23"),
@@ -131,8 +107,6 @@ week_winter <-
   scale_y_continuous(label=comma,limits=c(0,11750)) +
   ggtitle(as.character(format(as.Date("2019-01-23"),'%A, %B %d, %Y')))+
   theme(legend.position = "bottom")
-
-
 
 weekend_winter<-
   ggplot(filter(edges.by_type,date=="2019-01-26"),
@@ -168,6 +142,6 @@ plot <-
   plot_grid(plegend, prow, 
             ncol = 1, rel_heights = c(.1, 1))
 
-ggsave(plot,filename = paste0("dist/img/png/winter-faceted-alluvials.png"),
+ggsave(plot,filename = paste0("img/png/winter-faceted-alluvials.png"),
        height=210, width=297, units='mm',
        dpi = 300)
